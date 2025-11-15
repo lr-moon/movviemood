@@ -31,7 +31,6 @@ class MyApp extends StatelessWidget {
       // --- MODIFICADO ---
       // Título de la app para el sistema operativo.
       title: 'MovieMood', // Actualizado de 'Login App'
-
       // --- MODIFICADO ---
       // Define el tema visual (oscuro, para que coincida con tu app).
       theme: ThemeData(

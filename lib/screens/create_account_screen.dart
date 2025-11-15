@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-// --- IMPORTS ELIMINADOS ---
-// Se quitaron 'dart:convert' y 'package:http/http.dart'
+// Importa el repositorio de cuentas que acabamos de crear.
+import 'package:flutter_application_1/services/acount_repository.dart';
 
 // --- Definición del Widget de la Pantalla de Creación de Cuenta ---
 class CreateAccountScreen extends StatefulWidget {
@@ -18,12 +18,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final TextEditingController confirmPasswordController =
       TextEditingController();
 
+  // --- Instancia del Repositorio ---
+  final AccountRepository _accountRepository = AccountRepository();
+
   // --- Variables de Estado para la visibilidad de la contraseña ---
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
-  // --- ELIMINADO: Variable de estado para la carga ---
-  // bool _isLoading = false;
+  // --- Variable de estado para la carga (re-introducida) ---
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -33,9 +36,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     super.dispose();
   }
 
-  // --- FUNCIÓN SIMPLIFICADA: Sin 'async', API, o 'try/catch' de red ---
-  void _onRegisterPressed() {
-    // 1. Validar que las contraseñas coincidan (lógica básica)
+  /// Función que se ejecuta al presionar "Registrar".
+  /// Ahora es 'async' para esperar la operación de la BD.
+  void _onRegisterPressed() async {
+    // 1. Validar que las contraseñas coincidan
     if (passwordController.text != confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -43,11 +47,13 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           backgroundColor: Colors.red,
         ),
       );
-      return; // No continuar
+      return;
     }
 
-    // 2. Validar que los campos no estén vacíos (lógica básica)
-    if (emailController.text.isEmpty || passwordController.text.isEmpty) {
+    // 2. Validar que los campos no estén vacíos
+    if (emailController.text.isEmpty ||
+        passwordController.text.isEmpty ||
+        confirmPasswordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Por favor, completa todos los campos.'),
@@ -57,17 +63,49 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       return;
     }
 
-    // 3. --- LÓGICA DE API ELIMINADA ---
-    // Si la validación básica pasa, simplemente mostramos un mensaje
-    // y regresamos a la pantalla de login.
+    // 3. --- LÓGICA DE BASE DE DATOS REAL ---
+    setState(() {
+      _isLoading = true; // Mostrar indicador de carga
+    });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('¡Cuenta creada con éxito! (Simulación)'),
-        backgroundColor: Colors.green,
-      ),
-    );
-    Navigator.of(context).pop(); // Regresar a la pantalla de login
+    try {
+      
+      // Usamos el repositorio para registrar al usuario.
+      await _accountRepository.registerUser(
+        emailController.text,
+        passwordController.text,
+      );
+      // Si llegamos aquí, el registro fue exitoso
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('¡Cuenta creada con éxito!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      // Regresar a la pantalla de login
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } on RegistrationException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+      );
+    } catch (e) {
+      // Manejar cualquier otro error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error inesperado: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      // 4. Detener la carga, sin importar si fue éxito o error
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -77,7 +115,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       body: SafeArea(
         child: Column(
           children: <Widget>[
-            // --- Encabezado de la Pantalla ---
+            // --- Encabezado de la Pantalla (sin cambios) ---
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
@@ -247,24 +285,34 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                               borderRadius: BorderRadius.circular(30.0),
                             ),
                           ),
-                          // --- MODIFICADO: Llama a la función simple ---
-                          onPressed: _onRegisterPressed,
-                          // --- MODIFICADO: Ya no muestra el 'loading' ---
-                          child: const Text(
-                            'Crear Cuenta',
-                            style: TextStyle(
-                              fontSize: 18.0,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          // Deshabilita el botón mientras carga
+                          onPressed: _isLoading ? null : _onRegisterPressed,
+                          // Muestra un indicador de carga
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.black,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Crear Cuenta',
+                                  style: TextStyle(
+                                    fontSize: 18.0,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
                       ),
 
                       // --- Botón para ir a Iniciar Sesión ---
                       TextButton(
-                        // Cierra la pantalla actual y regresa a la anterior (login).
-                        // --- MODIFICADO: Ya no deshabilita con 'loading' ---
-                        onPressed: () => Navigator.of(context).pop(),
+                        // Deshabilita mientras carga
+                        onPressed: _isLoading
+                            ? null
+                            : () => Navigator.of(context).pop(),
                         child: const Text(
                           '¿Ya tienes una cuenta? Inicia sesión',
                           style: TextStyle(color: Colors.white70),

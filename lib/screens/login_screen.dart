@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/local_auth_service.dart'; // Ruta corregida
-
-// --- IMPORTS ELIMINADOS ---
-// Se quitaron 'package:http/http.dart' y 'dart:convert'
+import 'package:flutter_application_1/services/acount_repository.dart';
+import '../services/local_auth_service.dart';
 
 import 'home_screen.dart';
 import 'forgot_password_screen.dart';
@@ -24,6 +22,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController passwordController = TextEditingController();
   bool _isPasswordVisible = false;
 
+  // --- Instancia del Repositorio ---
+  final AccountRepository _accountRepository = AccountRepository();
+
   // --- Estado de Carga ---
   bool _isLoading = false;
 
@@ -43,10 +44,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // --- FUNCIÓN DE LOGIN MODIFICADA ---
-  // Se eliminó toda la lógica de 'http', 'try-catch' de red y
-  // la validación de email/contraseña.
-  Future<void> _onLoginSuccess() async {
+  /// Se ejecuta al presionar el botón "Entrar".
+  Future<void> _onLoginPressed() async {
     // 1. Iniciar el estado de carga
     if (mounted) {
       setState(() {
@@ -55,9 +54,38 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     try {
-      // 2. Ejecutar la lógica de "login exitoso" directamente
-      // (Esta era la parte que estaba dentro del 'if (response.statusCode == 200)')
+      // 2. Validar credenciales usando el repositorio.
+      await _accountRepository.login(
+        emailController.text,
+        passwordController.text,
+      );
 
+      // Si llegamos aquí, el login fue exitoso.
+      // Ahora ejecutamos la lógica post-login (huella y navegación).
+      await _handleSuccessfulLogin();
+    } on LoginException catch (e) {
+      // Capturar errores específicos de login (usuario no encontrado, contraseña incorrecta).
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      // Capturar cualquier otro error inesperado.
+      _showGenericError(e.toString());
+    } finally {
+      // 6. Detener el estado de carga (pase lo que pase)
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  /// Maneja la lógica después de un inicio de sesión exitoso (diálogo de huella y navegación).
+  Future<void> _handleSuccessfulLogin() async {
+    try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setBool('usuarioYaLogueado', true);
 
@@ -65,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final bool canCheck = await authService.canCheckBiometrics();
 
       if (canCheck && mounted) {
-        // 3. Mostrar diálogo para activar la huella
+        // Mostrar diálogo para activar la huella
         showDialog(
           context: context,
           barrierDismissible: false,
@@ -105,28 +133,20 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
       } else {
-        // 4. Si no hay biometría, solo navegar a home
+        // Si no hay biometría, solo navegar a home
         _navigateToHome();
       }
-      // --- Fin de la lógica de huella ---
     } catch (e) {
-      // 5. Capturar cualquier error local (ej. SharedPreferences o LocalAuth)
-      print('Error en lógica de login local: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error local: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      // 6. Detener el estado de carga (pase lo que pase)
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      _showGenericError('Error al configurar la sesión: $e');
+    }
+  }
+
+  /// Muestra un SnackBar con un mensaje de error genérico.
+  void _showGenericError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -293,8 +313,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderRadius: BorderRadius.circular(30.0),
                             ),
                           ),
-                          // Sigue llamando a la misma función, pero ahora esa función no tiene API
-                          onPressed: _isLoading ? null : _onLoginSuccess,
+                          // Llama a la nueva función de login que valida con la BD.
+                          onPressed: _isLoading ? null : _onLoginPressed,
                           child: _isLoading
                               // Muestra indicador de carga
                               ? const SizedBox(

@@ -61,4 +61,17 @@ class DatabaseService {
     }
     //print("--- Base de datos creada y poblada exitosamente. ---");
   }
+
+  /// Inserta un nuevo usuario en la tabla 'Usuarios'.
+  ///
+  /// Este método es llamado por AccountRepository después de validar
+  /// que el usuario no existe.
+  Future<void> registerUser(String email, String password) async {
+    final db = await database;
+    await db.insert('Usuarios', {
+      'email': email,
+      'contrasena':
+          password, // ¡Importante! En una app real, la contraseña debe ser hasheada.
+    });
+  }
 }

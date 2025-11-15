@@ -1,9 +1,15 @@
 // Importa los widgets de Material Design para la interfaz.
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 // --- MODIFICADO ---
 // Importa la nueva pantalla de verificación que decide si mostrar login o huella.
 import 'screens/auth_check_screen.dart';
+// --- NUEVO ---
+// Importa el AuthProvider.
+import 'providers/auth_provider.dart';
+// --- NUEVO ---
+import 'services/resena_repositoy.dart';
 
 // --- TUS COLORES (para el tema) ---
 const Color kDarkBackground = Color(0xFF1C1C1E);
@@ -11,10 +17,17 @@ const Color kGoldColor = Color(0xFFD4AF37);
 const Color kMaroonColor = Color(0xFF8B1E3F);
 
 // Función principal que inicia la aplicación.
-void main() {
-  // Le dice a Flutter que ejecute la clase MyApp como la app principal.
-  runApp(const MyApp());
-}
+void main() => runApp(
+      // Envuelve la app con MultiProvider para gestionar los estados.
+      MultiProvider(
+        providers: [
+          // Registra el AuthProvider para que esté disponible en toda la app.
+          ChangeNotifierProvider(create: (_) => AuthProvider()),
+          ChangeNotifierProvider(create: (_) => ResenaService()),
+        ],
+        child: const MyApp(),
+      ),
+    );
 
 // Define el widget principal de la aplicación (es estático, no cambia).
 class MyApp extends StatelessWidget {

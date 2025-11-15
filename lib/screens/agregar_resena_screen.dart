@@ -1,8 +1,15 @@
 import 'dart:io'; // Importa dart:io para manejar el tipo 'File'
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart'; // Importa el paquete de image_picker
-import 'package:dotted_border/dotted_border.dart'; // Importa el paquete de dotted_border
+import 'package:dotted_border/dotted_border.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
 
+import '../models/resena_model.dart';
+import '../providers/auth_provider.dart';
+import '../services/resena_repositoy.dart';
 // --- Definición de los colores de tu app ---
 const Color kDarkBackground = Color(0xFF1C1C1E);
 const Color kMaroonColor = Color(0xFF8B1E3F);
@@ -30,7 +37,7 @@ class AgregarResenaScreen extends StatelessWidget {
             Navigator.of(context).pop();
           },
         ),
-        title: const Text(
+        title: const Text( 
           'Agregar Reseña',
           style: TextStyle(
             fontWeight: FontWeight.bold,
@@ -99,6 +106,7 @@ class _ReviewFormState extends State<ReviewForm> {
   final TextEditingController _reviewContentController =
       TextEditingController();
   int _rating = 0;
+  bool _isLoading = false;
 
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
@@ -156,6 +164,76 @@ class _ReviewFormState extends State<ReviewForm> {
         // Actualiza el estado con la nueva imagen
         _imageFile = File(pickedFile.path);
       });
+    }
+  }
+
+  /// Guarda la imagen temporal en un directorio permanente y devuelve la ruta.
+  Future<String?> _saveImagePermanently(File tempImage) async {
+    try {
+      // 1. Obtener el directorio de documentos de la aplicación.
+      final appDir = await getApplicationDocumentsDirectory();
+      // 2. Crear un nombre de archivo único para evitar colisiones.
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}${p.extension(tempImage.path)}';
+      // 3. Crear la ruta de destino permanente.
+      final permanentImagePath = p.join(appDir.path, fileName);
+      // 4. Copiar el archivo desde la ruta temporal a la permanente.
+      await tempImage.copy(permanentImagePath);
+      // 5. Devolver la nueva ruta permanente.
+      return permanentImagePath;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al guardar la imagen: $e'), backgroundColor: Colors.redAccent),
+        );
+      }
+      return null;
+    }
+  }
+
+  /// Procesa y guarda la reseña completa.
+  Future<void> _submitReview() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_rating == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, selecciona una calificación.'), backgroundColor: Colors.red));
+      return;
+    }
+
+    if (_imageFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, selecciona una imagen.'), backgroundColor: Colors.red));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // 1. Obtener el ID del usuario desde AuthProvider.
+      final userId = Provider.of<AuthProvider>(context, listen: false).userId;
+      if (userId == null) throw Exception('No se pudo obtener el ID del usuario.');
+
+      // 2. Guardar la imagen permanentemente.
+      final imagePath = await _saveImagePermanently(_imageFile!);
+      if (imagePath == null) return; // El error ya se mostró en la función.
+
+      // 3. Crear el objeto Resena.
+      final newReview = Resena(
+        idUser: userId,
+        titulo: _reviewTitleController.text,
+        contenido: _reviewContentController.text,
+        calificacion: _rating,
+        fecha: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        rutaImagen: imagePath,
+      );
+
+      // 4. Insertar en la base de datos usando ResenaService.
+      await Provider.of<ResenaService>(context, listen: false).insertResena(newReview);
+
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Reseña publicada con éxito!'), backgroundColor: Colors.green));
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al publicar la reseña: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -349,41 +427,7 @@ class _ReviewFormState extends State<ReviewForm> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
-                if (_formKey.currentState!.validate()) {
-                  if (_rating == 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Por favor, selecciona una calificación.',
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  } else if (_imageFile == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Por favor, selecciona una imagen.'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  } else {
-                    // Lógica para guardar la reseña
-                    print(
-                      'Reseña válida. Película: ${_movieNameController.text}, Calificación: $_rating',
-                    );
-                    print('Imagen seleccionada: ${_imageFile!.path}');
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('¡Reseña publicada con éxito!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                    // Navigator.of(context).pop();
-                  }
-                }
-              },
+              onPressed: _isLoading ? null : _submitReview,
               style: ElevatedButton.styleFrom(
                 backgroundColor: kGoldColor,
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -391,14 +435,20 @@ class _ReviewFormState extends State<ReviewForm> {
                   borderRadius: BorderRadius.circular(15),
                 ),
               ),
-              child: const Text(
-                'Publicar Reseña',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: kDarkBackground,
-                ),
-              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(color: kDarkBackground),
+                    )
+                  : const Text(
+                      'Publicar Reseña',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: kDarkBackground,
+                      ),
+                    ),
             ),
           ),
         ],

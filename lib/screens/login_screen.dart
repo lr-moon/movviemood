@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_application_1/services/acount_repository.dart';
+import '../providers/auth_provider.dart';
 import '../services/local_auth_service.dart';
 
 import 'home_screen.dart';
@@ -21,13 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool _isPasswordVisible = false;
-
-  // --- Instancia del Repositorio ---
-  final AccountRepository _accountRepository = AccountRepository();
-
-  // --- Estado de Carga ---
-  bool _isLoading = false;
-
+  
   @override
   void dispose() {
     emailController.dispose();
@@ -46,21 +41,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// Se ejecuta al presionar el botón "Entrar".
   Future<void> _onLoginPressed() async {
-    // 1. Iniciar el estado de carga
-    if (mounted) {
-      setState(() {
-        _isLoading = true;
-      });
-    }
+    // Obtiene la instancia del AuthProvider sin escuchar cambios.
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     try {
-      // 2. Validar credenciales usando el repositorio.
-      await _accountRepository.login(
+      // 1. Llama al método de login del provider.
+      await authProvider.login(
         emailController.text,
         passwordController.text,
       );
 
-      // Si llegamos aquí, el login fue exitoso.
+      // 2. Si llegamos aquí, el login fue exitoso.
       // Ahora ejecutamos la lógica post-login (huella y navegación).
       await _handleSuccessfulLogin();
     } on LoginException catch (e) {
@@ -73,13 +64,6 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       // Capturar cualquier otro error inesperado.
       _showGenericError(e.toString());
-    } finally {
-      // 6. Detener el estado de carga (pase lo que pase)
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
   }
 
@@ -152,6 +136,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Escucha los cambios en AuthProvider para actualizar la UI (ej. el estado de carga).
+    final authProvider = Provider.of<AuthProvider>(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFF1C1C1E),
       body: SafeArea(
@@ -269,7 +256,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: _isLoading
+                          onPressed: authProvider.isLoading
                               ? null
                               : () {
                                   // Deshabilitar si está cargando
@@ -314,8 +301,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           // Llama a la nueva función de login que valida con la BD.
-                          onPressed: _isLoading ? null : _onLoginPressed,
-                          child: _isLoading
+                          onPressed: authProvider.isLoading ? null : _onLoginPressed,
+                          child: authProvider.isLoading
                               // Muestra indicador de carga
                               ? const SizedBox(
                                   height: 24,
@@ -337,7 +324,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 8.0),
                       // --- Botón para crear cuenta ---
                       TextButton(
-                        onPressed: _isLoading
+                        onPressed: authProvider.isLoading
                             ? null
                             : () {
                                 // Deshabilitar si está cargando

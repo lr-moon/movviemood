@@ -35,14 +35,16 @@ dependencies:
   json_annotation: ^4.9.0
   intl: ^0.17.0
   path_provider: ^2.1.3 
-
+  
   
   # === CORRECCIÓN: Se añadieron 2 espacios a las siguientes líneas ===
   image_picker: ^1.0.7 
   dotted_border: ^2.1.0 
   local_auth: ^2.2.0 # Para la autenticación biométrica
   shared_preferences: ^2.2.3 # Para recordar las preferencias
-  http: ^1.2.1
+  # http: ^1.2.1 # Comentado porque no se usa en el código actual. Descomenta si lo necesitas.
+  provider: ^6.1.2 # ¡IMPORTANTE! Necesario para la gestión de estado.
+
   
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

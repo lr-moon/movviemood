@@ -66,7 +66,8 @@ class AccountRepository {
   /// Valida las credenciales de un usuario para iniciar sesión.
   ///
   /// Lanza un [LoginException] si el usuario no se encuentra o la contraseña es incorrecta.
-  Future<void> login(String email, String password) async {
+  /// Devuelve el `id_user` si el login es exitoso.
+  Future<int> login(String email, String password) async {
     final db = await _dbService.database;
 
     // 1. Buscar al usuario por su correo electrónico.
@@ -88,6 +89,8 @@ class AccountRepository {
     if (user['contrasena'] != password) {
       throw LoginException('La contraseña es incorrecta.');
     }
-    // Si todo es correcto, el método finaliza sin errores.
+    // 4. Si todo es correcto, devuelve el ID del usuario.
+    // Asumimos que la columna de la clave primaria se llama 'id_user'.
+    return user['id_user'] as int;
   }
 }

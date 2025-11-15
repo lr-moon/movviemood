@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/acount_repository.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../providers/auth_provider.dart';
+// Importa la excepción personalizada junto con el provider.
+import '../models/auth_provider.dart';
 import '../services/local_auth_service.dart';
 
 import 'home_screen.dart';
@@ -22,7 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool _isPasswordVisible = false;
-  
+
   @override
   void dispose() {
     emailController.dispose();
@@ -46,10 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       // 1. Llama al método de login del provider.
-      await authProvider.login(
-        emailController.text,
-        passwordController.text,
-      );
+      await authProvider.login(emailController.text, passwordController.text);
 
       // 2. Si llegamos aquí, el login fue exitoso.
       // Ahora ejecutamos la lógica post-login (huella y navegación).
@@ -301,7 +300,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           // Llama a la nueva función de login que valida con la BD.
-                          onPressed: authProvider.isLoading ? null : _onLoginPressed,
+                          onPressed: authProvider.isLoading
+                              ? null
+                              : _onLoginPressed,
                           child: authProvider.isLoading
                               // Muestra indicador de carga
                               ? const SizedBox(

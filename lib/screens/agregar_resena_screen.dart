@@ -8,8 +8,9 @@ import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../models/resena_model.dart';
-import '../providers/auth_provider.dart';
+import '../models/auth_provider.dart';
 import '../services/resena_repositoy.dart';
+
 // --- Definición de los colores de tu app ---
 const Color kDarkBackground = Color(0xFF1C1C1E);
 const Color kMaroonColor = Color(0xFF8B1E3F);
@@ -37,7 +38,7 @@ class AgregarResenaScreen extends StatelessWidget {
             Navigator.of(context).pop();
           },
         ),
-        title: const Text( 
+        title: const Text(
           'Agregar Reseña',
           style: TextStyle(
             fontWeight: FontWeight.bold,
@@ -150,20 +151,23 @@ class _ReviewFormState extends State<ReviewForm> {
     );
   }
 
-  // --- FUNCIÓN MODIFICADA (PUNTO 5): ACEPTA LA FUENTE (SOURCE) ---
+  /// Permite al usuario seleccionar una imagen de la galería o tomar una foto.
+  /// La imagen seleccionada se copia a un directorio permanente para evitar que se pierda.
   Future<void> _pickImage(ImageSource source) async {
-    // Usa la 'source' (galería o cámara) que se le pasa como argumento
     final XFile? pickedFile = await _picker.pickImage(
       source: source,
-      imageQuality: 80, // Opcional: comprime la imagen un poco
+      imageQuality: 80,
     );
 
-    // Si el usuario selecciona una imagen
     if (pickedFile != null) {
-      setState(() {
-        // Actualiza el estado con la nueva imagen
-        _imageFile = File(pickedFile.path);
-      });
+      // Guarda la imagen en una ubicación permanente y actualiza el estado.
+      final permanentImagePath = await _saveImagePermanently(
+        File(pickedFile.path),
+      );
+      if (permanentImagePath == null)
+        return; // Si hubo un error, no continuamos.
+
+      setState(() => _imageFile = File(permanentImagePath));
     }
   }
 
@@ -173,17 +177,21 @@ class _ReviewFormState extends State<ReviewForm> {
       // 1. Obtener el directorio de documentos de la aplicación.
       final appDir = await getApplicationDocumentsDirectory();
       // 2. Crear un nombre de archivo único para evitar colisiones.
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}${p.extension(tempImage.path)}';
+      final fileName =
+          '${DateTime.now().millisecondsSinceEpoch}${p.extension(tempImage.path)}';
       // 3. Crear la ruta de destino permanente.
-      final permanentImagePath = p.join(appDir.path, fileName);
+      final newImage = File(p.join(appDir.path, fileName));
       // 4. Copiar el archivo desde la ruta temporal a la permanente.
-      await tempImage.copy(permanentImagePath);
+      await tempImage.copy(newImage.path);
       // 5. Devolver la nueva ruta permanente.
-      return permanentImagePath;
+      return newImage.path;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al guardar la imagen: $e'), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text('Error al guardar la imagen: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
         );
       }
       return null;
@@ -195,12 +203,22 @@ class _ReviewFormState extends State<ReviewForm> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_rating == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, selecciona una calificación.'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, selecciona una calificación.'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
     if (_imageFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, selecciona una imagen.'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor, selecciona una imagen.'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
@@ -209,29 +227,41 @@ class _ReviewFormState extends State<ReviewForm> {
     try {
       // 1. Obtener el ID del usuario desde AuthProvider.
       final userId = Provider.of<AuthProvider>(context, listen: false).userId;
-      if (userId == null) throw Exception('No se pudo obtener el ID del usuario.');
+      if (userId == null)
+        throw Exception('No se pudo obtener el ID del usuario.');
 
-      // 2. Guardar la imagen permanentemente.
-      final imagePath = await _saveImagePermanently(_imageFile!);
-      if (imagePath == null) return; // El error ya se mostró en la función.
+      // 2. La imagen ya está en una ruta permanente. Solo obtenemos la ruta.
+      final imagePath = _imageFile!.path;
 
       // 3. Crear el objeto Resena.
       final newReview = Resena(
         idUser: userId,
         titulo: _reviewTitleController.text,
-        contenido: _reviewContentController.text,
+        critica: _reviewContentController.text,
         calificacion: _rating,
-        fecha: DateFormat('yyyy-MM-dd').format(DateTime.now()),
-        rutaImagen: imagePath,
+        imageUrl: imagePath,
       );
 
       // 4. Insertar en la base de datos usando ResenaService.
-      await Provider.of<ResenaService>(context, listen: false).insertResena(newReview);
+      await Provider.of<ResenaService>(
+        context,
+        listen: false,
+      ).insertResena(newReview);
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Reseña publicada con éxito!'), backgroundColor: Colors.green));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('¡Reseña publicada con éxito!'),
+          backgroundColor: Colors.green,
+        ),
+      );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al publicar la reseña: $e'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al publicar la reseña: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

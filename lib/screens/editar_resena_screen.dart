@@ -2,7 +2,6 @@ import 'dart:io'; // Importa dart:io para manejar el tipo 'File'
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart'; // Importa el paquete de image_picker
 import 'package:dotted_border/dotted_border.dart';
-import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
@@ -16,10 +15,11 @@ const Color kMaroonColor = Color(0xFF8B1E3F);
 const Color kGoldColor = Color(0xFFD4AF37);
 const Color kLightDark = Color(0xFF2C2C2E);
 
-// --- Pantalla Principal: "Agregar Reseña" ---
-class AgregarResenaScreen extends StatelessWidget {
-  const AgregarResenaScreen({super.key});
-
+// --- Pantalla Principal: "Editar Reseña" ---
+class EditarResenaScreen extends StatelessWidget {
+  final Resena resena;
+  const EditarResenaScreen({super.key, required this.resena});
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -38,7 +38,7 @@ class AgregarResenaScreen extends StatelessWidget {
           },
         ),
         title: const Text( 
-          'Agregar Reseña',
+          'Editar Reseña',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -64,7 +64,7 @@ class AgregarResenaScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     const Text(
-                      '¿Qué te pareció?',
+                      'Ajusta tu Opinión',
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
@@ -73,7 +73,7 @@ class AgregarResenaScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 5),
                     const Text(
-                      'Comparte tu opinión con la comunidad',
+                      'Modifica los detalles de tu reseña',
                       style: TextStyle(fontSize: 16, color: Colors.white70),
                     ),
                   ],
@@ -82,7 +82,7 @@ class AgregarResenaScreen extends StatelessWidget {
               const SizedBox(height: 30),
 
               // --- Formulario de Reseña ---
-              const ReviewForm(),
+              ReviewForm(resena: resena),
             ],
           ),
         ),
@@ -93,7 +93,8 @@ class AgregarResenaScreen extends StatelessWidget {
 
 // --- Widget del Formulario (Stateful) ---
 class ReviewForm extends StatefulWidget {
-  const ReviewForm({super.key});
+  final Resena resena;
+  const ReviewForm({super.key, required this.resena});
 
   @override
   State<ReviewForm> createState() => _ReviewFormState();
@@ -101,15 +102,27 @@ class ReviewForm extends StatefulWidget {
 
 class _ReviewFormState extends State<ReviewForm> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _movieNameController = TextEditingController();
   final TextEditingController _reviewTitleController = TextEditingController();
   final TextEditingController _reviewContentController =
       TextEditingController();
   int _rating = 0;
   bool _isLoading = false;
 
+  // --- CAMBIO: Manejo de la imagen ---
+  // _imageFile guarda una *nueva* imagen seleccionada por el usuario.
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    // Cargar los datos de la reseña en los controladores y el estado
+    _reviewTitleController.text = widget.resena.titulo;
+    _reviewContentController.text = widget.resena.critica;
+    _rating = widget.resena.calificacion;
+  }
+
+
 
   // --- NUEVA FUNCIÓN (PUNTO 5): MUESTRA EL MENÚ DE OPCIONES ---
   Future<void> _showImageSourceSelection(BuildContext context) async {
@@ -190,8 +203,8 @@ class _ReviewFormState extends State<ReviewForm> {
     }
   }
 
-  /// Procesa y guarda la reseña completa.
-  Future<void> _submitReview() async {
+  /// Procesa y actualiza la reseña.
+  Future<void> _updateReview() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_rating == 0) {
@@ -207,30 +220,34 @@ class _ReviewFormState extends State<ReviewForm> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Obtener el ID del usuario desde AuthProvider.
-      final userId = Provider.of<AuthProvider>(context, listen: false).userId;
-      if (userId == null) throw Exception('No se pudo obtener el ID del usuario.');
+      // 1. Determinar la ruta de la imagen.
+      String? imagePath;
+      if (_imageFile != null) {
+        // Si el usuario seleccionó una nueva imagen, la guardamos.
+        imagePath = await _saveImagePermanently(_imageFile!);
+        if (imagePath == null) return; // Error al guardar la nueva imagen.
+      } else {
+        // Si no, mantenemos la imagen original.
+        imagePath = widget.resena.imageUrl;
+      }
 
-      // 2. Guardar la imagen permanentemente.
-      final imagePath = await _saveImagePermanently(_imageFile!);
-      if (imagePath == null) return; // El error ya se mostró en la función.
-
-      // 3. Crear el objeto Resena.
-      final newReview = Resena(
-        idUser: userId,
+      // 2. Crear el objeto Resena actualizado.
+      final updatedReview = Resena(
+        idResena: widget.resena.idResena,
+        idUser: widget.resena.idUser, // Mantenemos el idUser original
         titulo: _reviewTitleController.text,
         critica: _reviewContentController.text,
         calificacion: _rating,
         imageUrl: imagePath,
       );
 
-      // 4. Insertar en la base de datos usando ResenaService.
-      await Provider.of<ResenaService>(context, listen: false).insertResena(newReview);
+      // 3. Actualizar en la base de datos.
+      await Provider.of<ResenaService>(context, listen: false).updateResena(updatedReview);
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Reseña publicada con éxito!'), backgroundColor: Colors.green));
-      if (mounted) Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Reseña actualizada con éxito!'), backgroundColor: Colors.green));
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst); // Volver a la lista principal
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al publicar la reseña: $e'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al actualizar la reseña: $e'), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -319,37 +336,44 @@ class _ReviewFormState extends State<ReviewForm> {
                 color: kLightDark.withOpacity(0.5),
                 borderRadius: BorderRadius.circular(15),
               ),
-              child: _imageFile == null
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.camera_alt,
-                            color: Colors.white70,
-                            size: 40,
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Toca para seleccionar una imagen',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ClipRRect(
+              // --- LÓGICA DE IMAGEN CORREGIDA ---
+              child: ClipRRect(
                       borderRadius: BorderRadius.circular(15),
-                      child: Image.file(
-                        _imageFile!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                      ),
+                      child: _buildImageWidget(),
                     ),
             ),
           ),
         ),
         const SizedBox(height: 25),
       ],
+    );
+  }
+
+  /// Construye el widget de imagen correcto basado en el estado actual.
+  Widget _buildImageWidget() {
+    // 1. Si el usuario ha seleccionado una nueva imagen, la mostramos.
+    if (_imageFile != null) {
+      return Image.file(_imageFile!, fit: BoxFit.cover, width: double.infinity);
+    }
+    // 2. Si no, mostramos la imagen original de la reseña.
+    if (widget.resena.imageUrl != null && widget.resena.imageUrl!.isNotEmpty) {
+      final imageUrl = widget.resena.imageUrl!;
+      if (imageUrl.startsWith('assets/')) {
+        return Image.asset(imageUrl, fit: BoxFit.cover, width: double.infinity);
+      } else {
+        return Image.file(File(imageUrl), fit: BoxFit.cover, width: double.infinity);
+      }
+    }
+    // 3. Si no hay ninguna imagen, mostramos el placeholder.
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.camera_alt, color: Colors.white70, size: 40),
+          SizedBox(height: 8),
+          Text('Toca para seleccionar una imagen', style: TextStyle(color: Colors.white70)),
+        ],
+      ),
     );
   }
 
@@ -397,12 +421,6 @@ class _ReviewFormState extends State<ReviewForm> {
       child: Column(
         children: [
           _buildTextField(
-            label: 'Nombre de la Película/Serie',
-            hint: 'Ej: Oppenheimer',
-            icon: Icons.movie,
-            controller: _movieNameController,
-          ),
-          _buildTextField(
             label: 'Título de tu Reseña',
             hint: 'Ej: Una obra maestra visual',
             icon: Icons.title,
@@ -426,7 +444,7 @@ class _ReviewFormState extends State<ReviewForm> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _isLoading ? null : _submitReview,
+              onPressed: _isLoading ? null : _updateReview,
               style: ElevatedButton.styleFrom(
                 backgroundColor: kGoldColor,
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -441,7 +459,7 @@ class _ReviewFormState extends State<ReviewForm> {
                       child: CircularProgressIndicator(color: kDarkBackground),
                     )
                   : const Text(
-                      'Publicar Reseña',
+                      'Guardar Cambios',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

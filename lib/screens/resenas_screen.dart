@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'resena_detalle_screen.dart';
 import '../services/resena_repositoy.dart'; // Importamos el servicio de reseñas
@@ -107,6 +108,7 @@ class _ResenasScreenState extends State<ResenasScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) => ResenaDetalleScreen(
+                              idResena: resena.idResena!, // Pasamos el ID
                               titulo: resena.titulo,
                               critica: resena.critica,
                               calificacion: resena.calificacion.toDouble(),
@@ -217,26 +219,23 @@ class ResenaCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // --- Imagen de la Película ---
-          // Carga la imagen desde los assets del proyecto.
-          Image.asset(
-            imagenAsset,
-            width: 100,
-            height: 150,
-            fit: BoxFit.cover,
-            // Muestra un ícono de error si la imagen no se carga correctamente.
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                width: 100,
-                height: 150,
-                color: Colors.black26,
-                child: const Icon(
-                  Icons.image_not_supported_outlined,
-                  color: Colors.white54,
-                  size: 40,
+          // --- LÓGICA CORREGIDA PARA CARGAR IMAGEN ---
+          // Decide si cargar desde assets o desde un archivo del dispositivo.
+          imagenAsset.startsWith('assets/')
+              ? Image.asset(
+                  imagenAsset,
+                  width: 100,
+                  height: 150,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => _buildErrorImage(),
+                )
+              : Image.file(
+                  File(imagenAsset),
+                  width: 100,
+                  height: 150,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => _buildErrorImage(),
                 ),
-              );
-            },
-          ),
           // --- Contenido de Texto ---
           // Expanded permite que la columna de texto ocupe el espacio restante.
           Expanded(
@@ -296,6 +295,20 @@ class ResenaCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Widget auxiliar para mostrar en caso de error de carga de imagen.
+  Widget _buildErrorImage() {
+    return Container(
+      width: 100,
+      height: 150,
+      color: Colors.grey[800],
+      child: const Icon(
+        Icons.image_not_supported_outlined,
+        color: Colors.white54,
+        size: 40,
       ),
     );
   }

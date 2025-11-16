@@ -46,7 +46,7 @@ VALUES (3, 'Dune', 'Una adaptación épica y visualmente sobrecogedora de la nov
 INSERT INTO "Resenas" ("id_user", "titulo", "critica", "calificacion", "imagen_url")
 VALUES (4, 'Barbie', 'Una película sorprendentemente ingeniosa, divertida y con un mensaje poderoso. Greta Gerwig ofrece una sátira colorida y existencial que deconstruye el ícono de Barbie con humor y corazón, celebrando la feminidad en todas sus formas.', 4, 'assets/images/R3.jpg');
 
--- 4. Los Vengadores (id_user: 5, Calificacion: 4)
+-- 4. Los Vengadores (id_user: 5, Calificacion: 4) 
 INSERT INTO "Resenas" ("id_user", "titulo", "critica", "calificacion", "imagen_url")
 VALUES (5, 'Los Vengadores', 'El épico crossover que culminó años de construcción del universo Marvel. Joss Whedon equilibra a la perfección la acción espectacular con el humor y la dinámica entre sus héroes, creando un evento cinematográfico inolvidable.', 4, 'assets/images/R4.jpg');
 

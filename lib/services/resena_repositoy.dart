@@ -75,21 +75,7 @@ class ResenaService with ChangeNotifier {
   /// Elimina todas las reseñas (opcional)
   Future<void> clearResenas() async {
     final db = await database;
-    await db.delete(_tableName);
+    await db.delete(_tableName); 
     notifyListeners();
-  }
-
-  /// "Archiva" una reseña. Por ahora, le cambia el título para identificarla.
-  /// En una implementación real, podrías añadir una columna 'is_archived' a la tabla.
-  Future<int> archivarResena(int idResena) async {
-    final db = await database;
-    final count = await db.update(
-      _tableName,
-      {'titulo': '[ARCHIVADO]'}, // Lógica de ejemplo para archivar
-      where: 'id_resena = ?',
-      whereArgs: [idResena],
-    );
-    notifyListeners();
-    return count;
   }
 }

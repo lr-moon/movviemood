@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/auth_provider.dart';
 import '../models/resena_model.dart';
 import '../services/resena_repositoy.dart';
 import 'editar_resena_screen.dart';
@@ -16,6 +17,7 @@ const Color kSubtleText = Color(0xFF5f5f5f); // Texto secundario (gris)
 
 class ResenaDetalleScreen extends StatelessWidget {
   final int idResena;
+  final int idUserResena; // ID del usuario que creó la reseña
   final String titulo;
   final String critica;
   final double calificacion;
@@ -24,6 +26,7 @@ class ResenaDetalleScreen extends StatelessWidget {
   const ResenaDetalleScreen({
     super.key,
     required this.idResena,
+    required this.idUserResena,
     required this.titulo,
     required this.critica,
     required this.calificacion,
@@ -32,6 +35,11 @@ class ResenaDetalleScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Obtenemos el ID del usuario que ha iniciado sesión
+    final loggedInUserId = Provider.of<AuthProvider>(context, listen: false).userId;
+    // Verificamos si el usuario actual es el dueño de la reseña
+    final esPropietario = loggedInUserId == idUserResena;
+
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 38, 37, 37),
 
@@ -199,82 +207,85 @@ class ResenaDetalleScreen extends StatelessWidget {
               ),
             ),
 
-            // --- SECCIÓN DE BOTONES DE ACCIÓN ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  // --- Botón de Editar ---
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.edit, color: kDarkText),
-                      label: const Text('Editar', style: TextStyle(fontWeight: FontWeight.bold)),
-                      onPressed: () {
-                        // Creamos el objeto Resena para pasarlo a la pantalla de edición
-                        final resenaAEditar = Resena(
-                          idResena: idResena,
-                          titulo: titulo,
-                          critica: critica,
-                          calificacion: calificacion.toInt(),
-                          imageUrl: imagenAsset,
-                          idUser: 0, // No es necesario para la edición en este punto
-                        );
+            // --- SECCIÓN DE BOTONES DE ACCIÓN (SOLO SI ES PROPIETARIO) ---
+            if (esPropietario)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    // --- Botón de Editar ---
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.edit, color: kDarkText),
+                        label: const Text('Editar', style: TextStyle(fontWeight: FontWeight.bold)),
+                        onPressed: () {
+                          // Creamos el objeto Resena para pasarlo a la pantalla de edición
+                          final resenaAEditar = Resena(
+                            idResena: idResena,
+                            titulo: titulo,
+                            critica: critica,
+                            calificacion: calificacion.toInt(),
+                            imageUrl: imagenAsset,
+                            idUser: idUserResena, // Pasamos el idUser correcto
+                          );
 
-                        Navigator.of(context).push(MaterialPageRoute(
-                          builder: (context) => EditarResenaScreen(resena: resenaAEditar),
-                        ));
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kGoldColor,
-                        foregroundColor: kDarkText,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (context) => EditarResenaScreen(resena: resenaAEditar),
+                          ));
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kGoldColor,
+                          foregroundColor: kDarkText,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
+                    const SizedBox(width: 16),
 
-                  // --- Botón de Archivar ---
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.archive_outlined, color: Colors.redAccent),
-                      label: const Text('Archivar', style: TextStyle(color: Colors.redAccent)),
-                      onPressed: () async {
-                        // Lógica para archivar
-                        final shouldArchive = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Confirmar'),
-                            content: const Text('¿Estás seguro de que quieres archivar esta reseña?'),
-                            actions: [
-                              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
-                              TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Archivar')),
-                            ],
-                          ),
-                        );
+                    // --- Botón de Eliminar ---
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.delete_forever, color: Colors.redAccent),
+                        label: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
+                        onPressed: () async {
+                          // Lógica para eliminar con doble confirmación
+                          final shouldDelete = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Confirmar Eliminación'),
+                              content: const Text('¿Estás seguro de que quieres eliminar esta reseña? Esta acción no se puede deshacer.'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(true),
+                                  child: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
+                                ),
+                              ],
+                            ),
+                          );
 
-                        if (shouldArchive == true) {
-                          try {
-                            await Provider.of<ResenaService>(context, listen: false).archivarResena(idResena);
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reseña archivada con éxito.'), backgroundColor: Colors.orange));
-                            // --- CAMBIO: Regresar hasta la pantalla de inicio ---
-                            Navigator.of(context).popUntil((route) => route.isFirst);
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al archivar: $e'), backgroundColor: Colors.red));
+                          if (shouldDelete == true) {
+                            try {
+                              await Provider.of<ResenaService>(context, listen: false).deleteResena(idResena);
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reseña eliminada con éxito.'), backgroundColor: Colors.green));
+                              Navigator.of(context).popUntil((route) => route.isFirst);
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar: $e'), backgroundColor: Colors.red));
+                            }
                           }
-                        }
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.redAccent),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.redAccent),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),

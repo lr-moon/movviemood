@@ -109,6 +109,7 @@ class _ResenasScreenState extends State<ResenasScreen> {
                           MaterialPageRoute(
                             builder: (context) => ResenaDetalleScreen(
                               idResena: resena.idResena!, // Pasamos el ID
+                              idUserResena: resena.idUser, // ¡NUEVO! Pasamos el ID del autor
                               titulo: resena.titulo,
                               critica: resena.critica,
                               calificacion: resena.calificacion.toDouble(),

@@ -212,8 +212,9 @@ class _ReviewFormState extends State<ReviewForm> {
       return;
     }
 
-    if (_imageFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, selecciona una imagen.'), backgroundColor: Colors.red));
+    // --- VALIDACIÓN CORREGIDA ---
+    // La reseña debe tener una imagen, ya sea la original o una nueva.
+    if (_imageFile == null && (widget.resena.imageUrl == null || widget.resena.imageUrl!.isEmpty)) {      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, selecciona una imagen.'), backgroundColor: Colors.red));
       return;
     }
 
@@ -452,7 +453,7 @@ class _ReviewFormState extends State<ReviewForm> {
                   borderRadius: BorderRadius.circular(15),
                 ),
               ),
-              child: _isLoading
+              child: _isLoading 
                   ? const SizedBox(
                       height: 24,
                       width: 24,

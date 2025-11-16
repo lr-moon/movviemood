@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-// Importa el repositorio de cuentas que acabamos de crear.
-import 'package:flutter_application_1/services/acount_repository.dart';
+import 'package:provider/provider.dart';
+import '../models/auth_provider.dart';
+import '../services/acount_repository.dart'; // Para la excepción
 
 // --- Definición del Widget de la Pantalla de Creación de Cuenta ---
 class CreateAccountScreen extends StatefulWidget {
@@ -17,9 +18,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
       TextEditingController();
-
-  // --- Instancia del Repositorio ---
-  final AccountRepository _accountRepository = AccountRepository();
 
   // --- Variables de Estado para la visibilidad de la contraseña ---
   bool _isPasswordVisible = false;
@@ -63,15 +61,13 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       return;
     }
 
-    // 3. --- LÓGICA DE BASE DE DATOS REAL ---
-    setState(() {
-      _isLoading = true; // Mostrar indicador de carga
-    });
+    // 3. --- LÓGICA DE REGISTRO USANDO AUTHPROVIDER ---
+    // Obtenemos la instancia del AuthProvider.
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     try {
-      
-      // Usamos el repositorio para registrar al usuario.
-      await _accountRepository.registerUser(
+      // Llamamos al método de registro del provider.
+      await authProvider.register(
         emailController.text,
         passwordController.text,
       );
@@ -86,30 +82,25 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       if (mounted) {
         Navigator.of(context).pop();
       }
-    } on RegistrationException catch (e) {
+    } on RegistrationException catch (e) { // Capturamos la excepción específica.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message), backgroundColor: Colors.red),
       );
-    } catch (e) {
-      // Manejar cualquier otro error
+    } catch (e) { // Capturamos cualquier otro error inesperado.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error inesperado: $e'),
           backgroundColor: Colors.red,
         ),
       );
-    } finally {
-      // 4. Detener la carga, sin importar si fue éxito o error
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Escuchamos los cambios en AuthProvider para el estado de carga.
+    final authProvider = Provider.of<AuthProvider>(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFF1C1C1E),
       body: SafeArea(
@@ -286,9 +277,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             ),
                           ),
                           // Deshabilita el botón mientras carga
-                          onPressed: _isLoading ? null : _onRegisterPressed,
+                          onPressed: authProvider.isLoading ? null : _onRegisterPressed,
                           // Muestra un indicador de carga
-                          child: _isLoading
+                          child: authProvider.isLoading
                               ? const SizedBox(
                                   height: 22,
                                   width: 22,
@@ -310,7 +301,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       // --- Botón para ir a Iniciar Sesión ---
                       TextButton(
                         // Deshabilita mientras carga
-                        onPressed: _isLoading
+                        onPressed: authProvider.isLoading
                             ? null
                             : () => Navigator.of(context).pop(),
                         child: const Text(

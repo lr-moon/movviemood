@@ -39,4 +39,24 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
+  /// Intenta registrar un nuevo usuario.
+  ///
+  /// Lanza una excepción si el registro falla (por ejemplo, si el correo ya existe),
+  /// que debe ser capturada en la UI para mostrar un mensaje de error.
+  Future<void> register(String email, String password) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      // Llama al repositorio para registrar al usuario.
+      await _accountRepository.registerUser(email, password);
+    } catch (e) {
+      // Vuelve a lanzar el error para que la UI lo maneje (muestre un SnackBar, etc.).
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 }

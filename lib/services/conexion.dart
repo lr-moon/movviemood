@@ -71,7 +71,7 @@ class DatabaseService {
     await db.insert('Usuarios', {
       'email': email,
       'contrasena':
-          password, // ¡Importante! En una app real, la contraseña debe ser hasheada.
+          password, 
     });
   }
 }

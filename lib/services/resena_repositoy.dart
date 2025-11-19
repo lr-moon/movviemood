@@ -30,7 +30,7 @@ class ResenaService with ChangeNotifier {
       orderBy: 'id_resena DESC',
     );
 
-    // LOG: Imprimimos los datos crudos de la BD para depuración.
+    //  Imprimimos los datos crudos de la BD para depuración.
     debugPrint("--- Datos de reseñas obtenidos de la BD ---");
     debugPrint(maps.toString());
     return maps.map((map) => Resena.fromMap(map)).toList();

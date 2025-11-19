@@ -4,7 +4,6 @@ import 'resena_detalle_screen.dart';
 import '../services/resena_repositoy.dart'; // Importamos el servicio de reseñas
 import '../models/resena_model.dart'; // Importamos el modelo de Resena
 
-// --- Convertimos a StatefulWidget para manejar el estado de carga de datos ---
 class ResenasScreen extends StatefulWidget {
   const ResenasScreen({super.key});
 
@@ -14,35 +13,94 @@ class ResenasScreen extends StatefulWidget {
 
 class _ResenasScreenState extends State<ResenasScreen> {
   // --- Fuente de Datos ---
-  // Ahora es un Future que obtendrá la lista de reseñas desde la BD.
   late Future<List<Resena>> _listaDeResenasFuture;
   final ResenaService _resenaService = ResenaService();
 
-  @override 
+  // --- Variables de estado para la Búsqueda ---
+  bool _isSearching = false; // Controla si la barra de búsqueda está visible
+  final TextEditingController _searchController = TextEditingController();
+  List<Resena> _allResenas = []; // Guarda la lista completa
+  List<Resena> _filteredResenas = []; // Guarda la lista filtrada
+
+  @override
   void initState() {
     super.initState();
-    // Iniciamos la carga de datos cuando el widget se crea.
+    // Iniciamos la carga de datos.
     _loadResenas();
+
+    // --- Listener para el campo de búsqueda ---
+    // Cada vez que el usuario escribe, se llama a _filterResenas
+    _searchController.addListener(() {
+      _filterResenas(_searchController.text);
+    });
   }
 
   void _loadResenas() {
     setState(() {
+      // Reiniciamos las listas al recargar
+      _allResenas = [];
+      _filteredResenas = [];
       _listaDeResenasFuture = _resenaService.getAllResenas();
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF1C1C1E),
-      // --- Barra de Aplicación (AppBar) ---
-      appBar: AppBar(
-        title: const Text('Reseñas Publicadas'),
-        backgroundColor: const Color(0xFF8B2E41), // Color corporativo.
-        foregroundColor: Colors.white,
-        elevation: 0, // Sin sombra.
+  // --- Método para filtrar la lista ---
+  void _filterResenas(String query) {
+    // Obtenemos la consulta de búsqueda en minúsculas
+    final String searchQuery = query.toLowerCase();
+
+    setState(() {
+      // Filtramos la lista completa (_allResenas)
+      _filteredResenas = _allResenas.where((resena) {
+        // Comparamos el título de la reseña (también en minúsculas)
+        final String titulo = resena.titulo.toLowerCase();
+        return titulo.contains(searchQuery);
+      }).toList();
+    });
+  }
+
+  // --- Método para construir el AppBar dinámicamente ---
+  AppBar _buildAppBar() {
+    if (_isSearching) {
+      // --- AppBar de Búsqueda (cuando _isSearching es true) ---
+      return AppBar(
+        backgroundColor: const Color(
+          0xFF2C2C2E,
+        ), // Un color más oscuro para la búsqueda
+        leading: const Icon(Icons.search, color: Colors.white70),
+        title: TextField(
+          controller: _searchController,
+          autofocus: true, // Abre el teclado automáticamente
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Buscar por título de película...',
+            hintStyle: TextStyle(color: Colors.white70),
+            border: InputBorder.none, // Sin línea debajo
+          ),
+        ),
         actions: [
-          // Agregamos un botón para recargar las reseñas
+          // Botón para limpiar y cerrar la búsqueda
+          IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: 'Cerrar búsqueda',
+            onPressed: () {
+              setState(() {
+                _isSearching = false;
+                _searchController.clear(); // Limpia el texto
+                // _filterResenas("") se llamará automáticamente por el listener
+              });
+            },
+          ),
+        ],
+      );
+    } else {
+
+      return AppBar(
+        title: const Text('Reseñas Publicadas'),
+        backgroundColor: const Color(0xFF8B2E41),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Recargar reseñas',
@@ -51,15 +109,30 @@ class _ResenasScreenState extends State<ResenasScreen> {
           IconButton(
             icon: const Icon(Icons.search),
             tooltip: 'Buscar reseña',
-            onPressed: () => print('Botón de búsqueda presionado'),
+            // --- Al presionar, activa el estado de búsqueda ---
+            onPressed: () {
+              setState(() {
+                _isSearching = true;
+              });
+            },
           ),
         ],
-      ),
-      // --- Cuerpo de la Pantalla ---
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF1C1C1E),
+      // --- Usamos el método para el AppBar ---
+      appBar: _buildAppBar(),
+
       body: CustomScrollView(
         slivers: <Widget>[
           // 1. Widget del encabezado (Banner + Títulos).
-          const _HeaderResenas(),
+          // Ocultamos el header si estamos buscando para dar más espacio
+          if (!_isSearching) const _HeaderResenas(),
 
           // 2. Usamos un FutureBuilder para construir la lista de reseñas.
           FutureBuilder<List<Resena>>(
@@ -91,11 +164,36 @@ class _ResenasScreenState extends State<ResenasScreen> {
               }
 
               // --- Caso 4: Datos cargados correctamente ---
-              final listaDeResenas = snapshot.data!;
+
+              // --- Lógica de Búsqueda ---
+              // Si la lista _allResenas está vacía, la llenamos con los datos
+              // del snapshot. Esto solo pasa la primera vez o al recargar.
+              if (_allResenas.isEmpty) {
+                _allResenas = snapshot.data!;
+                _filteredResenas = _allResenas;
+              }
+              // --- FIN MODIFICACIÓN ---
+
+              // --- Manejar "Búsqueda sin resultados" ---
+              // Si la lista filtrada está vacía, pero la lista original no,
+              // significa que la búsqueda no arrojó resultados.
+              if (_filteredResenas.isEmpty && _allResenas.isNotEmpty) {
+                return const SliverFillRemaining(
+                  child: Center(
+                    child: Text(
+                      'No se encontraron reseñas con ese título.',
+                      style: TextStyle(color: Colors.white70, fontSize: 16),
+                    ),
+                  ),
+                );
+              }
+
+              //  Usamos _filteredResenas ---
               return SliverList.builder(
-                itemCount: listaDeResenas.length,
+                itemCount: _filteredResenas.length, // <-- USA LA LISTA FILTRADA
                 itemBuilder: (context, index) {
-                  final resena = listaDeResenas[index];
+                  final resena =
+                      _filteredResenas[index]; // <-- USA LA LISTA FILTRADA
                   return Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16.0,
@@ -108,8 +206,8 @@ class _ResenasScreenState extends State<ResenasScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) => ResenaDetalleScreen(
-                              idResena: resena.idResena!, // Pasamos el ID
-                              idUserResena: resena.idUser, // ¡NUEVO! Pasamos el ID del autor
+                              idResena: resena.idResena!,
+                              idUserResena: resena.idUser,
                               titulo: resena.titulo,
                               critica: resena.critica,
                               calificacion: resena.calificacion.toDouble(),
@@ -136,33 +234,25 @@ class _ResenasScreenState extends State<ResenasScreen> {
   }
 }
 
-// --- WIDGET PRIVADO: Encabezado de la pantalla ---
-// (Tu código original)
+// --- Encabezado de la pantalla ---
 class _HeaderResenas extends StatelessWidget {
   const _HeaderResenas();
 
   @override
   Widget build(BuildContext context) {
-    // SliverToBoxAdapter permite usar un widget normal (como Column)
-    // dentro de un CustomScrollView.
     return SliverToBoxAdapter(
       child: Column(
         children: [
-          // --- Banner de Imagen de fondo ---
           Container(
             height: 200,
             width: double.infinity,
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage(
-                  'assets/images/image1.jpg',
-                ), // Carga imagen local.
-                fit: BoxFit.cover, // La imagen cubre todo el contenedor.
+                image: AssetImage('assets/images/image1.jpg'),
+                fit: BoxFit.cover,
               ),
             ),
           ),
-
-          // --- Título principal ---
           const Padding(
             padding: EdgeInsets.fromLTRB(16.0, 24.0, 16.0, 8.0),
             child: Text(
@@ -176,8 +266,6 @@ class _HeaderResenas extends StatelessWidget {
               ),
             ),
           ),
-
-          // --- Subtítulo ---
           const Padding(
             padding: EdgeInsets.fromLTRB(16.0, 0, 16.0, 20.0),
             child: Text(
@@ -193,12 +281,11 @@ class _HeaderResenas extends StatelessWidget {
 }
 
 // --- Widget reutilizable para cada Tarjeta de Reseña ---
-// (Tu código original)
 class ResenaCard extends StatelessWidget {
   final String titulo;
   final String critica;
   final double calificacion;
-  final String imagenAsset; // Recibe la ruta de la imagen local.
+  final String imagenAsset;
 
   const ResenaCard({
     Key? key,
@@ -214,31 +301,27 @@ class ResenaCard extends StatelessWidget {
       color: const Color(0xFF2C2C2E),
       margin: const EdgeInsets.only(bottom: 12.0),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
-      clipBehavior:
-          Clip.antiAlias, // Recorta el contenido a la forma de la tarjeta.
+      clipBehavior: Clip.antiAlias,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- Imagen de la Película ---
-          // --- LÓGICA CORREGIDA PARA CARGAR IMAGEN ---
-          // Decide si cargar desde assets o desde un archivo del dispositivo.
           imagenAsset.startsWith('assets/')
               ? Image.asset(
                   imagenAsset,
                   width: 100,
                   height: 150,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => _buildErrorImage(),
+                  errorBuilder: (context, error, stackTrace) =>
+                      _buildErrorImage(),
                 )
               : Image.file(
                   File(imagenAsset),
                   width: 100,
                   height: 150,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => _buildErrorImage(),
+                  errorBuilder: (context, error, stackTrace) =>
+                      _buildErrorImage(),
                 ),
-          // --- Contenido de Texto ---
-          // Expanded permite que la columna de texto ocupe el espacio restante.
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(12.0),
@@ -249,7 +332,6 @@ class ResenaCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // El título puede expandirse si es largo.
                       Expanded(
                         child: Text(
                           titulo,
@@ -261,7 +343,6 @@ class ResenaCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // --- Calificación con Estrella ---
                       Row(
                         children: [
                           const Icon(Icons.star, color: Colors.amber, size: 20),
@@ -279,16 +360,14 @@ class ResenaCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  // --- Crítica de la Película ---
                   Text(
                     critica,
-                    maxLines: 4, // Limita el texto a 3 líneas.
-                    overflow: TextOverflow
-                        .ellipsis, // Añade "..." si el texto es muy largo.
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 14,
-                      height: 1.4, // Espaciado entre líneas.
+                      height: 1.4,
                     ),
                   ),
                 ],
@@ -300,7 +379,6 @@ class ResenaCard extends StatelessWidget {
     );
   }
 
-  // Widget auxiliar para mostrar en caso de error de carga de imagen.
   Widget _buildErrorImage() {
     return Container(
       width: 100,

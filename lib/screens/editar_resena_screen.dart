@@ -124,7 +124,7 @@ class _ReviewFormState extends State<ReviewForm> {
 
 
 
-  // --- NUEVA FUNCIÓN (PUNTO 5): MUESTRA EL MENÚ DE OPCIONES ---
+  // -- MUESTRA EL MENÚ DE OPCIONES ---
   Future<void> _showImageSourceSelection(BuildContext context) async {
     showModalBottomSheet(
       context: context,
@@ -163,12 +163,12 @@ class _ReviewFormState extends State<ReviewForm> {
     );
   }
 
-  // --- FUNCIÓN MODIFICADA (PUNTO 5): ACEPTA LA FUENTE (SOURCE) ---
+  // --- ACEPTA LA FUENTE (SOURCE) ---
   Future<void> _pickImage(ImageSource source) async {
     // Usa la 'source' (galería o cámara) que se le pasa como argumento
     final XFile? pickedFile = await _picker.pickImage(
       source: source,
-      imageQuality: 80, // Opcional: comprime la imagen un poco
+      imageQuality: 80, // comprime la imagen un poco
     );
 
     // Si el usuario selecciona una imagen
@@ -212,7 +212,6 @@ class _ReviewFormState extends State<ReviewForm> {
       return;
     }
 
-    // --- VALIDACIÓN CORREGIDA ---
     // La reseña debe tener una imagen, ya sea la original o una nueva.
     if (_imageFile == null && (widget.resena.imageUrl == null || widget.resena.imageUrl!.isEmpty)) {      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, selecciona una imagen.'), backgroundColor: Colors.red));
       return;
@@ -322,7 +321,7 @@ class _ReviewFormState extends State<ReviewForm> {
         ),
         const SizedBox(height: 10),
         GestureDetector(
-          // --- CAMBIO (PUNTO 5): LLAMA A LA FUNCIÓN DE SELECCIÓN ---
+          // -- LLAMA A LA FUNCIÓN DE SELECCIÓN ---
           onTap: () => _showImageSourceSelection(context),
           child: DottedBorder(
             color: Colors.white70,
@@ -418,7 +417,6 @@ class _ReviewFormState extends State<ReviewForm> {
   Widget build(BuildContext context) {
     return Form(
       key: _formKey,
-      // --- CÓDIGO CORREGIDO: SIN DUPLICADOS Y EN ORDEN LÓGICO ---
       child: Column(
         children: [
           _buildTextField(

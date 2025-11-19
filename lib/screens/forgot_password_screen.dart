@@ -129,7 +129,6 @@ class ForgotPasswordScreen extends StatelessWidget {
                             ),
                           ),
                           onPressed: () {
-                            // TODO: Implementar la lógica para enviar el correo de recuperación.
                             print('Enlace de recuperación enviado');
                             // Cierra la pantalla actual para regresar a la de login.
                             Navigator.pop(context);

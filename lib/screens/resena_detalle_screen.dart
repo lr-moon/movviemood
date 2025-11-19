@@ -10,10 +10,9 @@ import 'editar_resena_screen.dart';
 // --- Definición de los colores ---
 const Color kMaroonColor = Color(0xFF8B2E41);
 const Color kGoldColor = Color(0xFFD4AF37);
-// --- NUEVOS COLORES para el modo claro ---
-const Color kLightBackground = Color(0xFFFFFFFF); // Fondo blanco
-const Color kDarkText = Color(0xFF2d2d2d); // Texto principal (casi negro)
-const Color kSubtleText = Color(0xFF5f5f5f); // Texto secundario (gris)
+const Color kLightBackground = Color(0xFFFFFFFF); 
+const Color kDarkText = Color(0xFF2d2d2d); 
+const Color kSubtleText = Color(0xFF5f5f5f); 
 
 class ResenaDetalleScreen extends StatelessWidget {
   final int idResena;
@@ -36,7 +35,10 @@ class ResenaDetalleScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Obtenemos el ID del usuario que ha iniciado sesión
-    final loggedInUserId = Provider.of<AuthProvider>(context, listen: false).userId;
+    final loggedInUserId = Provider.of<AuthProvider>(
+      context,
+      listen: false,
+    ).userId;
     // Verificamos si el usuario actual es el dueño de la reseña
     final esPropietario = loggedInUserId == idUserResena;
 
@@ -56,7 +58,7 @@ class ResenaDetalleScreen extends StatelessWidget {
 
       body: SingleChildScrollView(
         child: Column(
-          // CAMBIO: Alineación a la izquierda
+          //  Alineación a la izquierda
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // --- Imagen con Sombra y Altura Fija ---
@@ -83,14 +85,16 @@ class ResenaDetalleScreen extends StatelessWidget {
                           height: 350.0,
                           width: MediaQuery.of(context).size.width * 0.85,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => _buildErrorImage(context),
+                          errorBuilder: (context, error, stackTrace) =>
+                              _buildErrorImage(context),
                         )
                       : Image.file(
                           File(imagenAsset),
                           height: 350.0,
                           width: MediaQuery.of(context).size.width * 0.85,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => _buildErrorImage(context),
+                          errorBuilder: (context, error, stackTrace) =>
+                              _buildErrorImage(context),
                         ),
                 ),
               ),
@@ -103,10 +107,10 @@ class ResenaDetalleScreen extends StatelessWidget {
                 vertical: 16.0,
               ),
               child: Column(
-                // CAMBIO: Alineación a la izquierda
+                //  Alineación a la izquierda
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- CAMBIO: Sección de Calificación Minimalista ---
+                  // --- Sección de Calificación Minimalista ---
                   Center(
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -139,7 +143,7 @@ class ResenaDetalleScreen extends StatelessWidget {
                               TextSpan(text: calificacion.toString()),
                               // Sufijo "/ 10" más pequeño y sutil
                               TextSpan(
-                                text: ' / 10',
+                                text: ' / 5.0',
                                 style: TextStyle(
                                   color: const Color.fromARGB(
                                     255,
@@ -159,7 +163,7 @@ class ResenaDetalleScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 30),
 
-                  // --- CAMBIO: Título "Crítica Completa" con Icono ---
+                  // --- Título "Crítica Completa" con Icono ---
                   Row(
                     children: [
                       Icon(
@@ -191,7 +195,7 @@ class ResenaDetalleScreen extends StatelessWidget {
                   Divider(color: Colors.grey[300], thickness: 1, height: 20),
                   const SizedBox(height: 10),
 
-                  // --- CAMBIO: Texto de la Crítica (Justificado) ---
+                  // --- Texto de la Crítica (Justificado) ---
                   Text(
                     critica,
                     style: const TextStyle(
@@ -199,7 +203,7 @@ class ResenaDetalleScreen extends StatelessWidget {
                       fontSize: 16,
                       height: 1.7, // Más interlineado
                     ),
-                    // CAMBIO: Texto Justificado
+                    // Texto Justificado
                     textAlign: TextAlign.justify,
                   ),
                   const SizedBox(height: 40), // Espacio al final
@@ -210,7 +214,10 @@ class ResenaDetalleScreen extends StatelessWidget {
             // --- SECCIÓN DE BOTONES DE ACCIÓN (SOLO SI ES PROPIETARIO) ---
             if (esPropietario)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 20.0,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
@@ -218,7 +225,10 @@ class ResenaDetalleScreen extends StatelessWidget {
                     Expanded(
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.edit, color: kDarkText),
-                        label: const Text('Editar', style: TextStyle(fontWeight: FontWeight.bold)),
+                        label: const Text(
+                          'Editar',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         onPressed: () {
                           // Creamos el objeto Resena para pasarlo a la pantalla de edición
                           final resenaAEditar = Resena(
@@ -230,15 +240,20 @@ class ResenaDetalleScreen extends StatelessWidget {
                             idUser: idUserResena, // Pasamos el idUser correcto
                           );
 
-                          Navigator.of(context).push(MaterialPageRoute(
-                            builder: (context) => EditarResenaScreen(resena: resenaAEditar),
-                          ));
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  EditarResenaScreen(resena: resenaAEditar),
+                            ),
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: kGoldColor,
                           foregroundColor: kDarkText,
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
@@ -247,20 +262,34 @@ class ResenaDetalleScreen extends StatelessWidget {
                     // --- Botón de Eliminar ---
                     Expanded(
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.delete_forever, color: Colors.redAccent),
-                        label: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
+                        icon: const Icon(
+                          Icons.delete_forever,
+                          color: Colors.redAccent,
+                        ),
+                        label: const Text(
+                          'Eliminar',
+                          style: TextStyle(color: Colors.redAccent),
+                        ),
                         onPressed: () async {
                           // Lógica para eliminar con doble confirmación
                           final shouldDelete = await showDialog<bool>(
                             context: context,
                             builder: (ctx) => AlertDialog(
                               title: const Text('Confirmar Eliminación'),
-                              content: const Text('¿Estás seguro de que quieres eliminar esta reseña? Esta acción no se puede deshacer.'),
+                              content: const Text(
+                                '¿Estás seguro de que quieres eliminar esta reseña? Esta acción no se puede deshacer.',
+                              ),
                               actions: [
-                                TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
+                                TextButton(
+                                  onPressed: () => Navigator.of(ctx).pop(false),
+                                  child: const Text('Cancelar'),
+                                ),
                                 TextButton(
                                   onPressed: () => Navigator.of(ctx).pop(true),
-                                  child: const Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
+                                  child: const Text(
+                                    'Eliminar',
+                                    style: TextStyle(color: Colors.redAccent),
+                                  ),
                                 ),
                               ],
                             ),
@@ -268,18 +297,35 @@ class ResenaDetalleScreen extends StatelessWidget {
 
                           if (shouldDelete == true) {
                             try {
-                              await Provider.of<ResenaService>(context, listen: false).deleteResena(idResena);
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reseña eliminada con éxito.'), backgroundColor: Colors.green));
-                              Navigator.of(context).popUntil((route) => route.isFirst);
+                              await Provider.of<ResenaService>(
+                                context,
+                                listen: false,
+                              ).deleteResena(idResena);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Reseña eliminada con éxito.'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                              Navigator.of(
+                                context,
+                              ).popUntil((route) => route.isFirst);
                             } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar: $e'), backgroundColor: Colors.red));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error al eliminar: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
                             }
                           }
                         },
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Colors.redAccent),
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
@@ -295,10 +341,10 @@ class ResenaDetalleScreen extends StatelessWidget {
   // Widget auxiliar para mostrar en caso de error de carga de imagen.
   Widget _buildErrorImage(BuildContext context) {
     return Container(
-                      height: 350.0,
-                      width: MediaQuery.of(context).size.width * 0.85,
-                      color: Colors.grey[800],
-                      child: const Icon(Icons.movie_filter, color: Colors.grey, size: 80),
+      height: 350.0,
+      width: MediaQuery.of(context).size.width * 0.85,
+      color: Colors.grey[800],
+      child: const Icon(Icons.movie_filter, color: Colors.grey, size: 80),
     );
   }
 }

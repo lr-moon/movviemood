@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/auth_provider.dart';
-import '../services/acount_repository.dart'; // Para la excepción
+import '../services/acount_repository.dart';
 
-// --- Definición del Widget de la Pantalla de Creación de Cuenta ---
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({super.key});
 
@@ -11,20 +10,37 @@ class CreateAccountScreen extends StatefulWidget {
   State<CreateAccountScreen> createState() => _CreateAccountScreenState();
 }
 
-// --- Clase de Estado para CreateAccountScreen ---
 class _CreateAccountScreenState extends State<CreateAccountScreen> {
-  // --- Controladores para los campos de texto ---
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController =
-      TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
 
-  // --- Variables de Estado para la visibilidad de la contraseña ---
+  // Variables de visibilidad
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
-  // --- Variable de estado para la carga (re-introducida) ---
-  bool _isLoading = false;
+  // Variables de estado para errores
+  String? _emailError;
+  String? _passwordError;
+  String? _confirmPasswordError;
+
+  // Expresiones regulares para validación
+  final RegExp _emailRegex = RegExp(
+    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+  );
+  
+  final RegExp _passwordRegex = RegExp(
+    r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$'
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    // Listeners para validación en tiempo real
+    emailController.addListener(_validateEmail);
+    passwordController.addListener(_validatePassword);
+    confirmPasswordController.addListener(_validateConfirmPassword);
+  }
 
   @override
   void dispose() {
@@ -34,59 +50,160 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     super.dispose();
   }
 
-  /// Función que se ejecuta al presionar "Registrar".
-  /// Ahora es 'async' para esperar la operación de la BD.
+  // Validación de email en tiempo real
+  void _validateEmail() {
+    if (emailController.text.isEmpty) {
+      setState(() {
+        _emailError = null;
+      });
+      return;
+    }
+
+    if (!_emailRegex.hasMatch(emailController.text)) {
+      setState(() {
+        _emailError = 'Por favor, ingresa un correo electrónico válido';
+      });
+    } else {
+      setState(() {
+        _emailError = null;
+      });
+    }
+  }
+
+  // Validación de contraseña en tiempo real
+  void _validatePassword() {
+    if (passwordController.text.isEmpty) {
+      setState(() {
+        _passwordError = null;
+      });
+      return;
+    }
+
+    if (passwordController.text.length < 8) {
+      setState(() {
+        _passwordError = 'La contraseña debe tener al menos 8 caracteres';
+      });
+    } else {
+      setState(() {
+        _passwordError = null;
+      });
+    }
+
+    // También validar la confirmación cuando cambia la contraseña principal
+    _validateConfirmPassword();
+  }
+
+  // Validación de confirmación de contraseña en tiempo real
+  void _validateConfirmPassword() {
+    if (confirmPasswordController.text.isEmpty) {
+      setState(() {
+        _confirmPasswordError = null;
+      });
+      return;
+    }
+
+    if (confirmPasswordController.text != passwordController.text) {
+      setState(() {
+        _confirmPasswordError = 'Las contraseñas no coinciden';
+      });
+    } else {
+      setState(() {
+        _confirmPasswordError = null;
+      });
+    }
+  }
+
+  // Función para validar todos los campos antes del registro
+  bool _validateAllFields() {
+    _validateEmail();
+    _validatePassword();
+    _validateConfirmPassword();
+
+    return _emailError == null && 
+           _passwordError == null && 
+           _confirmPasswordError == null &&
+           emailController.text.isNotEmpty &&
+           passwordController.text.isNotEmpty &&
+           confirmPasswordController.text.isNotEmpty;
+  }
+
+  // Función que muestra los requisitos de la contraseña
+  Widget _buildPasswordRequirements() {
+    final password = passwordController.text;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'La contraseña debe contener:',
+          style: TextStyle(color: Colors.white70, fontSize: 12),
+        ),
+        const SizedBox(height: 4),
+        _buildRequirementLine('• Mínimo 8 caracteres', password.length >= 8),
+        _buildRequirementLine('• Al menos una mayúscula', RegExp(r'[A-Z]').hasMatch(password)),
+        _buildRequirementLine('• Al menos una minúscula', RegExp(r'[a-z]').hasMatch(password)),
+        _buildRequirementLine('• Al menos un número', RegExp(r'\d').hasMatch(password)),
+        _buildRequirementLine('• Al menos un carácter especial (@\$!%*?&)', 
+            RegExp(r'[@$!%*?&]').hasMatch(password)),
+      ],
+    );
+  }
+
+  Widget _buildRequirementLine(String text, bool isMet) {
+    return Row(
+      children: [
+        Icon(
+          isMet ? Icons.check_circle : Icons.radio_button_unchecked,
+          color: isMet ? Colors.green : Colors.grey,
+          size: 12,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(
+            color: isMet ? Colors.green : Colors.grey,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+
   void _onRegisterPressed() async {
-    // 1. Validar que las contraseñas coincidan
-    if (passwordController.text != confirmPasswordController.text) {
+    // Validar todos los campos antes de proceder
+    if (!_validateAllFields()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Las contraseñas no coinciden.'),
+          content: Text('Por favor, corrige los errores en el formulario.'),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
 
-    // 2. Validar que los campos no estén vacíos
-    if (emailController.text.isEmpty ||
-        passwordController.text.isEmpty ||
-        confirmPasswordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, completa todos los campos.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    // 3. --- LÓGICA DE REGISTRO USANDO AUTHPROVIDER ---
-    // Obtenemos la instancia del AuthProvider.
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     try {
-      // Llamamos al método de registro del provider.
       await authProvider.register(
-        emailController.text,
+        emailController.text.trim().toLowerCase(), // Normalizar email
         passwordController.text,
       );
-      // Si llegamos aquí, el registro fue exitoso
+      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('¡Cuenta creada con éxito!'),
           backgroundColor: Colors.green,
         ),
       );
-      // Regresar a la pantalla de login
+      
       if (mounted) {
         Navigator.of(context).pop();
       }
-    } on RegistrationException catch (e) { // Capturamos la excepción específica.
+    } on RegistrationException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message), backgroundColor: Colors.red),
       );
-    } catch (e) { // Capturamos cualquier otro error inesperado.
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error inesperado: $e'),
@@ -98,7 +215,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Escuchamos los cambios en AuthProvider para el estado de carga.
     final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
@@ -106,7 +222,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       body: SafeArea(
         child: Column(
           children: <Widget>[
-            // --- Encabezado de la Pantalla (sin cambios) ---
+            // Encabezado (sin cambios)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
@@ -134,7 +250,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 ],
               ),
             ),
-            // --- Formulario de Registro ---
+            
+            // Formulario de Registro
             Expanded(
               child: Center(
                 child: SingleChildScrollView(
@@ -153,7 +270,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         ),
                       ),
                       const SizedBox(height: 24.0),
-                      // --- Campo de Usuario (Correo) ---
+                      
+                      // Campo de Correo electrónico
                       const Text(
                         'Correo electrónico',
                         textAlign: TextAlign.left,
@@ -166,18 +284,20 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         textAlign: TextAlign.center,
                         style: const TextStyle(color: Colors.black87),
                         decoration: InputDecoration(
-                          hintText: 'Correo electrónico',
+                          hintText: 'ejemplo@correo.com',
                           filled: true,
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(30.0),
                             borderSide: BorderSide.none,
                           ),
+                          errorText: _emailError,
+                          errorStyle: const TextStyle(color: Colors.orange),
                         ),
                       ),
                       const SizedBox(height: 16.0),
 
-                      // --- Campo de Contraseña ---
+                      // Campo de Contraseña
                       const Text(
                         'Contraseña',
                         textAlign: TextAlign.left,
@@ -190,13 +310,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         textAlign: TextAlign.center,
                         style: const TextStyle(color: Colors.black87),
                         decoration: InputDecoration(
-                          hintText: 'Contraseña',
+                          hintText: 'Contraseña segura',
                           filled: true,
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(30.0),
                             borderSide: BorderSide.none,
                           ),
+                          errorText: _passwordError,
+                          errorStyle: const TextStyle(color: Colors.orange),
                           suffixIcon: IconButton(
                             icon: Icon(
                               _isPasswordVisible
@@ -212,9 +334,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16.0),
+                      const SizedBox(height: 8),
+                      
+                      // Mostrar requisitos de contraseña solo cuando el campo está enfocado o tiene texto
+                      if (passwordController.text.isNotEmpty)
+                        _buildPasswordRequirements(),
+                      const SizedBox(height: 8.0),
 
-                      // --- Campo de Confirmar Contraseña ---
+                      // Campo de Confirmar Contraseña
                       const Text(
                         'Confirmar Contraseña',
                         textAlign: TextAlign.left,
@@ -234,6 +361,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             borderRadius: BorderRadius.circular(30.0),
                             borderSide: BorderSide.none,
                           ),
+                          errorText: _confirmPasswordError,
+                          errorStyle: const TextStyle(color: Colors.orange),
                           suffixIcon: IconButton(
                             icon: Icon(
                               _isConfirmPasswordVisible
@@ -243,8 +372,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             ),
                             onPressed: () {
                               setState(() {
-                                _isConfirmPasswordVisible =
-                                    !_isConfirmPasswordVisible;
+                                _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
                               });
                             },
                           ),
@@ -252,7 +380,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       ),
                       const SizedBox(height: 24.0),
 
-                      // --- Botón de Crear Cuenta ---
+                      // Botón de Crear Cuenta
                       Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(30.0),
@@ -267,18 +395,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         ),
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(
-                              0xFFD4AF37,
-                            ), // Color dorado.
-                            foregroundColor: Colors.black, // Color del texto.
+                            backgroundColor: const Color(0xFFD4AF37),
+                            foregroundColor: Colors.black,
                             padding: const EdgeInsets.symmetric(vertical: 16.0),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30.0),
                             ),
                           ),
-                          // Deshabilita el botón mientras carga
-                          onPressed: authProvider.isLoading ? null : _onRegisterPressed,
-                          // Muestra un indicador de carga
+                          onPressed: (authProvider.isLoading || !_validateAllFields()) 
+                              ? null 
+                              : _onRegisterPressed,
                           child: authProvider.isLoading
                               ? const SizedBox(
                                   height: 22,
@@ -298,9 +424,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         ),
                       ),
 
-                      // --- Botón para ir a Iniciar Sesión ---
+                      // Botón para ir a Iniciar Sesión
                       TextButton(
-                        // Deshabilita mientras carga
                         onPressed: authProvider.isLoading
                             ? null
                             : () => Navigator.of(context).pop(),
